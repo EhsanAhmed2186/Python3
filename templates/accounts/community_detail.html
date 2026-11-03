@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ community.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 mb-0">{{ community.name }}</h1>
+  <span class="badge text-bg-secondary">Your role: {% if is_superadmin %}Superadmin{% elif membership %}{{ membership.get_role_display }}{% else %}Member{% endif %}</span>
+</div>
+
+{% if is_admin %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h6">Join code</h2>
+      <p class="text-muted small mb-2">Share this code with people you want to invite.</p>
+      <div class="input-group" style="max-width: 320px;">
+        <input type="text" id="joinCode" class="form-control" value="{{ community.join_code }}" readonly>
+        <button type="button" class="btn btn-outline-secondary" id="copyJoinCode">Copy</button>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header">Members ({{ members|length }})</div>
+  <ul class="list-group list-group-flush">
+    {% for member in members %}
+      <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>{{ member.user.username }}</span>
+        <span class="badge text-bg-secondary">{{ member.get_role_display }}</span>
+        {% if is_admin and member.user_id != community.admin_id or is_superadmin %}
+          <div class="d-flex gap-2">
+            {% if member.role == 'member' %}
+              <form method="post" action="{% url 'accounts:manage_membership' community.pk member.pk %}">
+                {% csrf_token %}<input type="hidden" name="action" value="promote">
+                <button class="btn btn-outline-primary btn-sm" type="submit">Promote to moderator</button>
+              </form>
+            {% elif member.role == 'moderator' %}
+              <form method="post" action="{% url 'accounts:manage_membership' community.pk member.pk %}">
+                {% csrf_token %}<input type="hidden" name="action" value="demote">
+                <button class="btn btn-outline-secondary btn-sm" type="submit">Demote</button>
+              </form>
+            {% endif %}
+            {% if member.user_id != community.admin_id %}
+              <form method="post" action="{% url 'accounts:manage_membership' community.pk member.pk %}" onsubmit="return confirm('Remove this member from the community?');">
+                {% csrf_token %}<input type="hidden" name="action" value="remove">
+                <button class="btn btn-outline-danger btn-sm" type="submit">Remove</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<a href="{% url 'newsfeed:feed' community.pk %}" class="btn btn-primary mb-3">Back to Lost &amp; Found feed</a><br>
+<a href="{% url 'home' %}">&larr; Back to my communities</a>
+{% endblock %}
+
+{% block extra_js %}
+{% if is_admin %}
+<script>
+  document.getElementById("copyJoinCode").addEventListener("click", function () {
+    var input = document.getElementById("joinCode");
+    input.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(input.value);
+    } else {
+      document.execCommand("copy");
+    }
+    this.textContent = "Copied";
+  });
+</script>
+{% endif %}
+{% endblock %}
